@@ -29,12 +29,22 @@ import dev.tamboui.terminal.Mode2027Support;
  * <p>
  * This backend uses the aesh-readline library's TerminalConnection abstraction
  * for terminal I/O operations.
+ * <p>
+ * Two construction modes are supported:
+ * <ul>
+ *   <li>{@link #AeshBackend()} — creates and owns a system terminal connection;
+ *       {@link #close()} will close it.</li>
+ *   <li>{@link #AeshBackend(Connection)} — uses an externally provided connection
+ *       (e.g., from SSH or HTTP); the caller retains ownership and {@link #close()}
+ *       will <em>not</em> close the connection.</li>
+ * </ul>
  */
 public class AeshBackend extends AbstractBackend {
 
     private static final String CSI = "\033[";
 
     private final Connection connection;
+    private final boolean ownConnection;
     private final StringBuilder outputBuffer;
     private final BlockingQueue<Integer> inputQueue;
     private Attributes savedAttributes;
@@ -45,23 +55,32 @@ public class AeshBackend extends AbstractBackend {
 
     /**
      * Creates a new Aesh backend using a default TerminalConnection.
+     * <p>
+     * The backend owns the connection and will close it when {@link #close()} is called.
      *
      * @throws IOException if the terminal cannot be initialized
      */
     public AeshBackend() throws IOException {
-        this(new TerminalConnection());
+        this(new TerminalConnection(), true);
     }
 
     /**
      * Creates a new Aesh backend using the provided Connection.
      * <p>
      * This constructor allows creating backends from SSH or HTTP connections.
+     * The caller retains ownership of the connection; it will not be closed
+     * when this backend is closed.
      *
      * @param connection the connection to use for terminal I/O
      * @throws IOException if the terminal cannot be initialized
      */
     public AeshBackend(Connection connection) throws IOException {
+        this(connection, false);
+    }
+
+    private AeshBackend(Connection connection, boolean ownConnection) throws IOException {
         this.connection = Objects.requireNonNull(connection, "connection cannot be null");
+        this.ownConnection = ownConnection;
         this.connection.openNonBlocking();
         this.outputBuffer = new StringBuilder();
         this.inputQueue = new LinkedBlockingQueue<>();
@@ -311,6 +330,14 @@ public class AeshBackend extends AbstractBackend {
         return val == null ? -2 : val;
     }
 
+    /**
+     * Closes this backend, resetting terminal state (mouse capture, alternate screen,
+     * cursor visibility, raw mode).
+     * <p>
+     * If this backend owns the connection (created via {@link #AeshBackend()}), the
+     * connection is closed. If an external connection was provided via
+     * {@link #AeshBackend(Connection)}, it is left open for the caller to manage.
+     */
     @Override
     public void close() throws IOException {
         try {
@@ -330,7 +357,9 @@ public class AeshBackend extends AbstractBackend {
 
             flush();
         } finally {
-            connection.close();
+            if (ownConnection) {
+                connection.close();
+            }
         }
     }
 
