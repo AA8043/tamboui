@@ -165,6 +165,27 @@ class SparklineTest {
     }
 
     @Test
+    @DisplayName("Block renders even with empty data")
+    void blockRendersWithEmptyData() {
+        Sparkline sparkline = Sparkline.builder()
+            .data(new long[0])
+            .block(Block.bordered())
+            .build();
+        Rect area = new Rect(0, 0, 5, 3);
+        Buffer buffer = Buffer.empty(area);
+
+        sparkline.render(area, buffer);
+
+        // Block corners should be visible
+        assertThat(buffer.get(0, 0).symbol()).isEqualTo("┌");
+        assertThat(buffer.get(4, 0).symbol()).isEqualTo("┐");
+        assertThat(buffer.get(0, 2).symbol()).isEqualTo("└");
+        assertThat(buffer.get(4, 2).symbol()).isEqualTo("┘");
+        // Inner area should be empty
+        assertThat(buffer.get(1, 1).symbol()).isEqualTo(" ");
+    }
+
+    @Test
     @DisplayName("Sparkline handles empty area")
     void handlesEmptyArea() {
         Sparkline sparkline = Sparkline.from(1, 2, 3);

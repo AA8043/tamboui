@@ -343,18 +343,18 @@ public final class Sparkline implements Widget {
 
     @Override
     public void render(Rect area, Buffer buffer) {
-        if (area.isEmpty() || data.length == 0) {
+        if (area.isEmpty()) {
             return;
         }
 
-        // Render block if present
+        // Render block if present (even with empty data, so borders/titles remain visible)
         Rect sparklineArea = area;
         if (block != null) {
             block.render(area, buffer);
             sparklineArea = block.inner(area);
         }
 
-        if (sparklineArea.isEmpty()) {
+        if (sparklineArea.isEmpty() || data.length == 0) {
             return;
         }
 
