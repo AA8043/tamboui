@@ -517,6 +517,9 @@ isBackTab(event)   // Shift+Tab
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/franz1981"><img src="https://avatars.githubusercontent.com/u/13125299?v=4?s=100" width="100px;" alt="Francesco Nigro"/><br /><sub><b>Francesco Nigro</b></sub></a><br /><a href="#code-franz1981" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://ncovercash.dev/"><img src="https://avatars.githubusercontent.com/u/8005215?v=4?s=100" width="100px;" alt="Noah Overcash"/><br /><sub><b>Noah Overcash</b></sub></a><br /><a href="#code-ncovercash" title="Code">💻</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/jlc488"><img src="https://avatars.githubusercontent.com/u/1614484?v=4?s=100" width="100px;" alt="Sin-Kang"/><br /><sub><b>Sin-Kang</b></sub></a><br /><a href="#code-jlc488" title="Code">💻</a></td>
+    </tr>
   </tbody>
 </table>
 
