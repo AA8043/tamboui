@@ -13,6 +13,7 @@ import dev.tamboui.style.Color;
 import dev.tamboui.style.StandardProperties;
 import dev.tamboui.style.Style;
 import dev.tamboui.style.StylePropertyResolver;
+import dev.tamboui.text.CharWidth;
 import dev.tamboui.widget.Widget;
 import dev.tamboui.widgets.block.Block;
 
@@ -30,27 +31,31 @@ import dev.tamboui.widgets.block.Block;
  *     .style(Style.EMPTY.fg(Color.CYAN))
  *     .build();
  *
- * // With block wrapper and custom max
+ * // With block wrapper, max, Y-axis and X-axis labels
  * Sparkline sparkline2 = Sparkline.builder()
  *     .data(dataArray)
  *     .max(100)
+ *     .showYAxis(true)
+ *     .xLabels("-60s", "-30s", "now")
  *     .block(Block.bordered().title(Title.from("CPU Usage")))
  *     .barSet(Sparkline.BarSet.THREE_LEVELS)
  *     .build();
  * }</pre>
  *
- * @see RenderDirection
  * @see BarSet
  */
 public final class Sparkline implements Widget {
 
     /**
      * Direction for rendering sparkline data.
+     * <p>
+     * Controls the order in which data points are laid out horizontally.
+     * Used by both Sparkline and DualSparkline.
      */
     public enum RenderDirection {
-        /** Render data from left to right (default). */
+        /** Render data from left to right (default). Oldest data at the left, newest at the right. */
         LEFT_TO_RIGHT,
-        /** Render data from right to left. */
+        /** Render data from right to left. Newest data at the left, oldest at the right. */
         RIGHT_TO_LEFT
     }
 
@@ -117,7 +122,7 @@ public final class Sparkline implements Widget {
         }
         /**
          * Nine-level bar set with fine-grained fill levels.
-         * Uses: ▁▂▃▄▅▆▇█
+         * Uses: ▁▂▃▄▅▆▇█ (fills from bottom of cell upward).
          */
         public static final BarSet NINE_LEVELS = new BarSet(
             " ", "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"
@@ -125,11 +130,48 @@ public final class Sparkline implements Widget {
 
         /**
          * Three-level bar set with coarse fill levels.
-         * Uses: ▄█ (empty, half, full)
+         * Uses: ▄█ (empty, half, full; fills from bottom of cell upward).
          */
         public static final BarSet THREE_LEVELS = new BarSet(
             " ", "▄", "▄", "▄", "▄", "█", "█", "█", "█"
         );
+
+        /**
+         * Nine-level reversed bar set for downward-growing bars.
+         * Uses: ▔▀█ — fills from top of cell downward.
+         * <p>
+         * Unicode only defines upper one-eighth (▔) and upper half (▀) block characters,
+         * so intermediate levels are approximated to the nearest available symbol.
+         */
+        public static final BarSet NINE_LEVELS_REVERSED = new BarSet(
+            " ", "▔", "▔", "▀", "▀", "▀", "█", "█", "█"
+        );
+
+        /**
+         * Three-level reversed bar set for downward-growing bars.
+         * Uses: ▀█ (empty, half, full; fills from top of cell downward).
+         */
+        public static final BarSet THREE_LEVELS_REVERSED = new BarSet(
+            " ", "▀", "▀", "▀", "▀", "█", "█", "█", "█"
+        );
+
+        /**
+         * Returns the reversed bar set for downward-growing bars.
+         * <p>
+         * The reversed set uses upper block characters that fill from the top of the cell
+         * downward, suitable for the bottom half of a dual sparkline. If this bar set
+         * is {@link #NINE_LEVELS}, returns {@link #NINE_LEVELS_REVERSED}; if {@link #THREE_LEVELS},
+         * returns {@link #THREE_LEVELS_REVERSED}; otherwise returns {@link #NINE_LEVELS_REVERSED}
+         * as a best-effort default.
+         *
+         * @return a bar set with symbols that fill from the top of the cell
+         */
+        public BarSet reversed() {
+            if (this.equals(THREE_LEVELS)) {
+                return THREE_LEVELS_REVERSED;
+            }
+            return NINE_LEVELS_REVERSED;
+        }
 
         /**
          * Returns the symbol for the given fill level (0.0 to 1.0).
@@ -288,12 +330,17 @@ public final class Sparkline implements Widget {
         }
     }
 
+    private static final int Y_LABEL_WIDTH = 4;
+    private static final Style DIM = Style.EMPTY.dim();
+
     private final long[] data;
     private final Long max;
     private final Block block;
     private final BarSet barSet;
     private final RenderDirection direction;
     private final Style style;
+    private final boolean showYAxis;
+    private final String[] xLabels;
 
     private Sparkline(Builder builder) {
         this.data = builder.data;
@@ -301,6 +348,8 @@ public final class Sparkline implements Widget {
         this.block = builder.block;
         this.barSet = builder.barSet;
         this.direction = builder.direction;
+        this.showYAxis = builder.showYAxis;
+        this.xLabels = builder.xLabels;
 
         // Resolve style-aware properties
         Color resolvedFg = builder.resolveForeground();
@@ -364,13 +413,34 @@ public final class Sparkline implements Widget {
             effectiveMax = 1; // Avoid division by zero
         }
 
+        int innerH = sparklineArea.height();
+        boolean hasXAxis = xLabels != null && xLabels.length > 0;
+        // Reserve one row at the bottom for x-axis labels when configured
+        int chartH = hasXAxis ? Math.max(1, innerH - 1) : innerH;
+
+        int yLabelW = showYAxis ? Y_LABEL_WIDTH : 0;
+        int chartW = Math.max(1, sparklineArea.width() - yLabelW);
+
         // Determine how many data points to display
-        int displayCount = Math.min(data.length, sparklineArea.width());
-        int dataOffset = data.length > sparklineArea.width()
-            ? data.length - sparklineArea.width()
+        int displayCount = Math.min(data.length, chartW);
+        int dataOffset = data.length > chartW
+            ? data.length - chartW
             : 0;
 
-        // Render each bar
+        // Render Y-axis labels
+        if (showYAxis) {
+            String maxLabel = effectiveMax > 9999 ? "999+" : String.format("%4d", effectiveMax);
+            // Max label at top row of chart
+            buffer.setString(sparklineArea.x(), sparklineArea.y(), maxLabel, DIM);
+            if (chartH > 1) {
+                // Zero label at bottom row of chart
+                buffer.setString(sparklineArea.x(), sparklineArea.y() + chartH - 1, "   0", DIM);
+            }
+        }
+
+        Style effectiveStyle = style != null ? style : Style.EMPTY;
+
+        // Render each bar column across all chart rows (multi-row sub-pixel rendering)
         for (int i = 0; i < displayCount; i++) {
             int dataIndex = dataOffset + i;
 
@@ -379,20 +449,54 @@ public final class Sparkline implements Widget {
             }
 
             long value = data[dataIndex];
-            double level = (double) value / effectiveMax;
-            String symbol = barSet.symbolForLevel(level);
+            // Scale value to sub-pixel height: chartH rows * 8 levels per row
+            long barPx = effectiveMax > 0 ? value * chartH * 8 / effectiveMax : 0;
 
             // In LEFT_TO_RIGHT: data[0] at left (x=0), data[n] at right
             // In RIGHT_TO_LEFT: data[0] at right, data[n] at left
             int x = direction == RenderDirection.LEFT_TO_RIGHT
-                ? sparklineArea.x() + i
-                : sparklineArea.right() - 1 - i;
+                ? sparklineArea.x() + yLabelW + i
+                : sparklineArea.x() + yLabelW + (displayCount - 1 - i);
 
-            // Render from bottom of area
-            int y = sparklineArea.bottom() - 1;
+            if (x < sparklineArea.x() || x >= sparklineArea.right()) {
+                continue;
+            }
 
-            if (x >= sparklineArea.x() && x < sparklineArea.right()) {
-                buffer.setString(x, y, symbol, style != null ? style : Style.EMPTY);
+            // Render from bottom row to top row
+            long remaining = barPx;
+            for (int row = chartH - 1; row >= 0; row--) {
+                String symbol;
+                if (remaining >= 8) {
+                    symbol = barSet.full();
+                } else if (remaining > 0) {
+                    symbol = barSet.symbolForLevel((double) remaining / 8.0);
+                } else {
+                    symbol = barSet.empty();
+                }
+                int y = sparklineArea.y() + row;
+                buffer.setString(x, y, symbol, effectiveStyle);
+                remaining = remaining >= 8 ? remaining - 8 : 0;
+            }
+        }
+
+        // Render X-axis labels below the chart body
+        if (hasXAxis && innerH > chartH) {
+            int xAxisY = sparklineArea.y() + chartH;
+            boolean rtl = direction == RenderDirection.RIGHT_TO_LEFT;
+            for (int li = 0; li < xLabels.length; li++) {
+                String lbl = xLabels[li];
+                int lblWidth = CharWidth.of(lbl);
+                double rawFraction = xLabels.length > 1 ? (double) li / (xLabels.length - 1) : 0;
+                double fraction = rtl ? 1.0 - rawFraction : rawFraction;
+                int col = (int) Math.round(fraction * (displayCount - 1));
+                boolean atRightEdge = rtl ? li == 0 : li == xLabels.length - 1;
+                int start = atRightEdge
+                        ? Math.max(0, col - lblWidth + 1)
+                        : col;
+                if (start < chartW) {
+                    String truncated = CharWidth.substringByWidth(lbl, chartW - start);
+                    buffer.setString(sparklineArea.x() + yLabelW + start, xAxisY, truncated, DIM);
+                }
             }
         }
     }
@@ -414,6 +518,8 @@ public final class Sparkline implements Widget {
         private BarSet barSet = BarSet.NINE_LEVELS;
         private RenderDirection direction = RenderDirection.LEFT_TO_RIGHT;
         private Style style = Style.EMPTY;
+        private boolean showYAxis = false;
+        private String[] xLabels;
         private StylePropertyResolver styleResolver = StylePropertyResolver.empty();
 
         // Style-aware properties (resolved via styleResolver in build())
@@ -518,6 +624,35 @@ public final class Sparkline implements Widget {
          */
         public Builder direction(RenderDirection direction) {
             this.direction = direction != null ? direction : RenderDirection.LEFT_TO_RIGHT;
+            return this;
+        }
+
+        /**
+         * Controls whether a Y-axis label is rendered on the left showing the maximum data value.
+         * The label column is 4 characters wide. Defaults to {@code false}.
+         * <p>
+         * When the sparkline area has only 1 row of height, the label appears on the same row as the bars.
+         *
+         * @param show whether to show the y-axis label
+         * @return this builder
+         */
+        public Builder showYAxis(boolean show) {
+            this.showYAxis = show;
+            return this;
+        }
+
+        /**
+         * Sets the x-axis labels rendered as a single row below the sparkline bars. Labels are distributed
+         * evenly across the data range. The last label is right-aligned at its position so it does not
+         * overflow the right edge. Requires at least 2 rows of height (1 for bars + 1 for labels).
+         * <p>
+         * Example: {@code xLabels("-60s", "-45s", "-30s", "-15s", "now")}
+         *
+         * @param labels the labels, distributed left-to-right
+         * @return this builder
+         */
+        public Builder xLabels(String... labels) {
+            this.xLabels = labels != null ? labels.clone() : null;
             return this;
         }
 

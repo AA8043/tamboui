@@ -332,6 +332,8 @@ public class WidgetsSnippets {
         Sparkline sparkline = Sparkline.builder()
             .data(data)
             .foreground(Color.CYAN)
+            .showYAxis(true)
+            .xLabels("-60s", "-30s", "now")
             .block(Block.builder()
                 .title("CPU Usage")
                 .borders(Borders.ALL)

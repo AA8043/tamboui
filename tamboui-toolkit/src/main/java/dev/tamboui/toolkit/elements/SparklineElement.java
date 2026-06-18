@@ -38,6 +38,8 @@ public final class SparklineElement extends StyledElement<SparklineElement> {
     private Long max;
     private Sparkline.BarSet barSet = Sparkline.BarSet.NINE_LEVELS;
     private Sparkline.RenderDirection direction = Sparkline.RenderDirection.LEFT_TO_RIGHT;
+    private boolean showYAxis;
+    private String[] xLabels;
     private String title;
     private BorderType borderType;
     private Color borderColor;
@@ -205,6 +207,31 @@ public final class SparklineElement extends StyledElement<SparklineElement> {
     }
 
     /**
+     * Shows or hides the Y-axis label on the left side.
+     * The label column is 4 characters wide and shows the maximum data value.
+     *
+     * @param show whether to show the Y-axis label
+     * @return this element
+     */
+    public SparklineElement showYAxis(boolean show) {
+        this.showYAxis = show;
+        return this;
+    }
+
+    /**
+     * Sets X-axis labels rendered below the sparkline bars.
+     * Labels are distributed evenly across the data range.
+     * Requires at least 2 rows of height (1 for bars + 1 for labels).
+     *
+     * @param labels the labels, distributed left-to-right
+     * @return this element
+     */
+    public SparklineElement xLabels(String... labels) {
+        this.xLabels = labels != null ? labels.clone() : null;
+        return this;
+    }
+
+    /**
      * Uses rounded borders.
      *
      * @return this element
@@ -255,7 +282,12 @@ public final class SparklineElement extends StyledElement<SparklineElement> {
             .data(data)
             .style(context.currentStyle())
             .barSet(barSet)
-            .direction(direction);
+            .direction(direction)
+            .showYAxis(showYAxis);
+
+        if (xLabels != null) {
+            builder.xLabels(xLabels);
+        }
 
         if (max != null) {
             builder.max(max);

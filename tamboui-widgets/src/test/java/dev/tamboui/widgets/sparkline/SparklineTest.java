@@ -9,6 +9,7 @@ import java.util.Arrays;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import dev.tamboui.assertj.BufferAssertions;
 import dev.tamboui.buffer.Buffer;
 import dev.tamboui.layout.Rect;
 import dev.tamboui.style.Color;
@@ -263,18 +264,41 @@ class SparklineTest {
     }
 
     @Test
-    @DisplayName("Sparkline renders at bottom of area")
-    void rendersAtBottomOfArea() {
+    @DisplayName("Sparkline fills full height with multi-row bars")
+    void fillsFullHeight() {
         Sparkline sparkline = Sparkline.from(8);
         Rect area = new Rect(0, 0, 1, 3);
         Buffer buffer = Buffer.empty(area);
 
         sparkline.render(area, buffer);
 
-        // Sparkline should render at bottom row
-        assertThat(buffer.get(0, 0).symbol()).isEqualTo(" ");
-        assertThat(buffer.get(0, 1).symbol()).isEqualTo(" ");
+        // Full value fills all rows
+        assertThat(buffer.get(0, 0).symbol()).isEqualTo("█");
+        assertThat(buffer.get(0, 1).symbol()).isEqualTo("█");
         assertThat(buffer.get(0, 2).symbol()).isEqualTo("█");
+    }
+
+    @Test
+    @DisplayName("Sparkline renders multi-row sub-pixel bars")
+    void rendersMultiRowSubPixel() {
+        // In a 2-row area with max=8: value 4 = 50% = 1 row
+        // Bottom row gets full bar, top row gets empty
+        Sparkline sparkline = Sparkline.builder()
+            .data(0, 4, 8)
+            .build();
+        Rect area = new Rect(0, 0, 3, 2);
+        Buffer buffer = Buffer.empty(area);
+
+        sparkline.render(area, buffer);
+
+        // Row 0 (top): 0→" ", 4/8=0.5→" " (only fills bottom row), 8→"█"
+        assertThat(buffer.get(0, 0).symbol()).isEqualTo(" ");
+        assertThat(buffer.get(1, 0).symbol()).isEqualTo(" ");
+        assertThat(buffer.get(2, 0).symbol()).isEqualTo("█");
+        // Row 1 (bottom): 0→" ", 4→"█" (full bottom row), 8→"█"
+        assertThat(buffer.get(0, 1).symbol()).isEqualTo(" ");
+        assertThat(buffer.get(1, 1).symbol()).isEqualTo("█");
+        assertThat(buffer.get(2, 1).symbol()).isEqualTo("█");
     }
 
     @Test
@@ -290,6 +314,110 @@ class SparklineTest {
         assertThat(buffer.get(0, 0).symbol()).isEqualTo("▄"); // 4/8
         assertThat(buffer.get(1, 0).symbol()).isEqualTo("█"); // 8/8
         assertThat(buffer.get(2, 0).symbol()).isEqualTo(" "); // empty
+    }
+
+    // -------------------------------------------------------------------------
+    // Y-axis labels
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Y-axis labels rendered when showYAxis is true")
+    void yAxisLabelsRendered() {
+        Sparkline sparkline = Sparkline.builder()
+            .data(8)
+            .max(8)
+            .showYAxis(true)
+            .build();
+        // 6 wide: 4 label cols + 2 data cols; 3 rows
+        Rect area = new Rect(0, 0, 6, 3);
+        Buffer buffer = Buffer.empty(area);
+
+        sparkline.render(area, buffer);
+
+        // Row 0: max label + bar; Row 2: zero label + bar
+        BufferAssertions.assertThat(buffer).hasContent(
+            "   8█ ",
+            "    █ ",
+            "   0█ "
+        );
+    }
+
+    @Test
+    @DisplayName("Y-axis label on single row shows max only")
+    void yAxisLabelSingleRow() {
+        Sparkline sparkline = Sparkline.builder()
+            .data(8)
+            .max(8)
+            .showYAxis(true)
+            .build();
+        // 6 wide: 4 label cols + 2 data cols; 1 row
+        Rect area = new Rect(0, 0, 6, 1);
+        Buffer buffer = Buffer.empty(area);
+
+        sparkline.render(area, buffer);
+
+        BufferAssertions.assertThat(buffer).hasContent("   8█ ");
+    }
+
+    @Test
+    @DisplayName("Y-axis not rendered by default")
+    void yAxisNotRenderedByDefault() {
+        Sparkline sparkline = Sparkline.from(8);
+        Rect area = new Rect(0, 0, 3, 1);
+        Buffer buffer = Buffer.empty(area);
+
+        sparkline.render(area, buffer);
+
+        // Bar fills the row, no label column
+        BufferAssertions.assertThat(buffer).hasContent("█  ");
+    }
+
+    // -------------------------------------------------------------------------
+    // X-axis labels
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("X-axis labels rendered below sparkline bars")
+    void xAxisLabelsRendered() {
+        Sparkline sparkline = Sparkline.builder()
+            .data(0, 0, 0, 0, 0, 0, 0, 0)
+            .xLabels("-7s", "now")
+            .build();
+        // height 2: 1 bar row + 1 x-axis row
+        Rect area = new Rect(0, 0, 8, 2);
+        Buffer buffer = Buffer.empty(area);
+
+        sparkline.render(area, buffer);
+
+        // x-axis at y=1: "-7s" at col 0, "now" right-aligned ending at col 7
+        BufferAssertions.assertThat(buffer).hasSymbolAt(0, 1, "-");
+        BufferAssertions.assertThat(buffer).hasSymbolAt(1, 1, "7");
+        BufferAssertions.assertThat(buffer).hasSymbolAt(2, 1, "s");
+        BufferAssertions.assertThat(buffer).hasSymbolAt(5, 1, "n");
+        BufferAssertions.assertThat(buffer).hasSymbolAt(7, 1, "w");
+    }
+
+    @Test
+    @DisplayName("X-axis labels with Y-axis combined")
+    void xAxisWithYAxisCombined() {
+        Sparkline sparkline = Sparkline.builder()
+            .data(8)
+            .max(8)
+            .showYAxis(true)
+            .xLabels("now")
+            .build();
+        // 6 wide: 4 label + 2 chart; 3 tall: 2 bar rows + 1 x-axis
+        Rect area = new Rect(0, 0, 6, 3);
+        Buffer buffer = Buffer.empty(area);
+
+        sparkline.render(area, buffer);
+
+        // Row 0: max label + bar; Row 1: zero label + bar; Row 2: x-axis label
+        BufferAssertions.assertThat(buffer).hasContent(
+            "   8█ ",
+            "   0█ ",
+            "    no"
+        );
     }
 
     @Test
