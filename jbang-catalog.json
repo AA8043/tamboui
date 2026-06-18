@@ -157,6 +157,9 @@
     "colors-rgb-demo": {
       "script-ref": "tamboui-widgets/demos/colors-rgb-demo/src/main/java/dev/tamboui/demo/ColorsRgbDemo.java"
     },
+    "dual-sparkline-demo": {
+      "script-ref": "tamboui-widgets/demos/dual-sparkline-demo/src/main/java/dev/tamboui/demo/DualSparklineDemo.java"
+    },
     "gauge-demo": {
       "script-ref": "tamboui-widgets/demos/gauge-demo/src/main/java/dev/tamboui/demo/GaugeDemo.java"
     },

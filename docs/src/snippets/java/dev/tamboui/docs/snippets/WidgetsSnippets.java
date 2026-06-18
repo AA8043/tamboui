@@ -49,6 +49,7 @@ import dev.tamboui.widgets.scrollbar.ScrollbarOrientation;
 import dev.tamboui.widgets.scrollbar.ScrollbarState;
 import dev.tamboui.widgets.select.Select;
 import dev.tamboui.widgets.select.SelectState;
+import dev.tamboui.widgets.sparkline.DualSparkline;
 import dev.tamboui.widgets.sparkline.Sparkline;
 import dev.tamboui.widgets.spinner.Spinner;
 import dev.tamboui.widgets.spinner.SpinnerFrameSet;
@@ -342,6 +343,28 @@ public class WidgetsSnippets {
 
         sparkline.render(area, buffer);
         // end::sparkline[]
+    }
+
+    void dualSparklineWidget() {
+        // tag::dual-sparkline[]
+        long[] inRates  = {0, 2, 5, 8, 12, 9, 6, 3};
+        long[] outRates = {0, 1, 3, 6,  9, 7, 4, 2};
+
+        DualSparkline chart = DualSparkline.builder()
+            .topData(inRates)
+            .bottomData(outRates)
+            .topStyle(Style.EMPTY.fg(Color.GREEN))
+            .bottomStyle(Style.EMPTY.fg(Color.BLUE))
+            .xLabels("-60s", "-45s", "-30s", "-15s", "now")
+            .block(Block.builder()
+                .title("In / Out  msg/s")
+                .borders(Borders.ALL)
+                .borderType(BorderType.ROUNDED)
+                .build())
+            .build();
+
+        chart.render(area, buffer);
+        // end::dual-sparkline[]
     }
 
     void barChartWidget() {
