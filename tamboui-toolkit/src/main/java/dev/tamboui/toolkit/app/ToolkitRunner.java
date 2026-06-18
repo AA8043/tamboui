@@ -579,7 +579,13 @@ public final class ToolkitRunner implements AutoCloseable {
          * @throws Exception if terminal initialization fails
          */
         public ToolkitRunner build() throws Exception {
-            TuiRunner tuiRunner = TuiRunner.create(config);
+            // Ensure bindings are propagated to TuiConfig so the TerminalInputReader
+            // stamps KeyEvents with the correct bindings. Without this, custom
+            // bindings (e.g., unbinding focusNext from Tab) would only affect the
+            // render context but not the input reader, causing the EventRouter to
+            // intercept keys that the user intended to handle in their elements.
+            TuiConfig effectiveConfig = config.withBindings(bindings);
+            TuiRunner tuiRunner = TuiRunner.create(effectiveConfig);
             ToolkitRunner runner = new ToolkitRunner(tuiRunner, faultTolerant, errorOutput, toolkitPostRenderProcessors);
 
             // Set bindings on render context for Component auto-registration
