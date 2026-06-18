@@ -27,9 +27,21 @@ import dev.tamboui.widgets.scrollbar.ScrollbarOrientation;
 import dev.tamboui.widgets.scrollbar.ScrollbarState;
 
 /**
- * A container element with a scrollbar that allows a vertical list that overflows its bounds.
+ * A scrollable container element with a built-in vertical scrollbar.
+ * <p>
+ * Each child counts as one scrollable unit; children will not be split across page boundaries.
+ * The scrollbar automatically adjusts based on the number of children and the visible viewport.
  *
- * Note that each child counts as one scrollable unit; children will not be split across page boundaries.
+ * <h2>Keyboard Bindings</h2>
+ * <ul>
+ *   <li>Up / Down — scroll one item</li>
+ *   <li>Page Up / Page Down — scroll one page</li>
+ * </ul>
+ *
+ * <h2>Mouse Bindings</h2>
+ * <ul>
+ *   <li>Scroll wheel up/down — scroll one item</li>
+ * </ul>
  */
 public final class ScrollableElement extends ContainerElement<ScrollableElement> {
 
@@ -103,19 +115,20 @@ public final class ScrollableElement extends ContainerElement<ScrollableElement>
     }
 
     /**
-     * Return the internal {@link ScrollbarState}.
+     * Returns the internal {@link ScrollbarState}.
      *
      * @return the scrollbar state
      */
-    public ScrollbarState getState() {
+    public ScrollbarState state() {
         return this.state;
     }
 
     /**
-     * Element of height 1 that will be displayed at the top of the area if there are
-     * results above the current view.
-     * @param scrollUpIndicator the indicator to use
-     * @return this, for fluent operations
+     * Sets an indicator element (height 1) displayed at the top of the area when there
+     * are items above the current view.
+     *
+     * @param scrollUpIndicator the indicator element
+     * @return this element for chaining
      */
     public ScrollableElement scrollUpIndicator(Element scrollUpIndicator) {
         this.scrollUpIndicator = scrollUpIndicator;
@@ -123,10 +136,11 @@ public final class ScrollableElement extends ContainerElement<ScrollableElement>
     }
 
     /**
-     * Element of height 1 that will be displayed at the bottom of the area if there are
-     * results below the current view.
-     * @param scrollDownIndicator the indicator to use
-     * @return this, for fluent operations
+     * Sets an indicator element (height 1) displayed at the bottom of the area when there
+     * are items below the current view.
+     *
+     * @param scrollDownIndicator the indicator element
+     * @return this element for chaining
      */
     public ScrollableElement scrollDownIndicator(Element scrollDownIndicator) {
         this.scrollDownIndicator = scrollDownIndicator;
@@ -203,16 +217,12 @@ public final class ScrollableElement extends ContainerElement<ScrollableElement>
             constraints.add(c);
         }
 
-        int totalRequiredHeight = constraints
-            .stream()
-            .mapToInt(c -> {
-                if (c instanceof Constraint.Length) {
-                    return ((Constraint.Length) c).value();
-                } else {
-                    return 1;
-                }
-            })
-            .sum();
+        int totalRequiredHeight = 0;
+        for (Constraint c : constraints) {
+            totalRequiredHeight += (c instanceof Constraint.Length)
+                    ? ((Constraint.Length) c).value()
+                    : 1;
+        }
 
         state.contentLength(totalRequiredHeight);
 

@@ -51,7 +51,7 @@ public final class ScrollableDemo extends ToolkitApp {
     protected TuiConfig configure() {
         return TuiConfig.builder()
             .tickRate(Duration.ofMillis(100))
-            .mouseCapture(false)
+            .mouseCapture(true)
             .bindings(BindingSets.vim())
             .build();
     }

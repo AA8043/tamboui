@@ -358,17 +358,6 @@ public final class Toolkit {
     }
 
     /**
-     * Creates a scrollable with a scrollbar and children.
-     *
-     * @param scrollbar the scrollbar to use
-     * @param children the child elements
-     * @return a new scrollable
-     */
-    public static ScrollableElement scrollable(ScrollbarElement scrollbar, Element... children) {
-        return new ScrollableElement(scrollbar).add(children);
-    }
-
-    /**
      * Creates a scrollable with a set of children.
      *
      * @param children the child elements
